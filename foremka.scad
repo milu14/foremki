@@ -1,6 +1,6 @@
 // Moduł do robienia foremek.
 
-module foremka(height=5, thickness=2, last_height = 0.3, last_thickness=0.5) {
+module foremka(height=10, thickness=2, last_height = 0.3, last_thickness=0.5) {
  union() {
   extrude_shell(height, thickness) children();
   translate([0, 0, height])
