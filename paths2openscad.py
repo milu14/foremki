@@ -30,7 +30,11 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
+import sys
+sys.path.append('/usr/share/inkscape/extensions')
+
 import math
+import contextlib
 import os.path
 import inkex
 import simplepath
@@ -260,7 +264,6 @@ class OpenSCAD( inkex.Effect ):
 		self.paths = {}
 
 		# Output file handling
-		self.call_list = []
 		self.pathid    = int( 0 )
 
 		# Output file
@@ -466,19 +469,6 @@ class OpenSCAD( inkex.Effect ):
 					# subpath i is containd in subpath j
 					contained_by[i].append( j )
 
-		# Generate an OpenSCAD module for this path
-		id = node.get ( 'id', '' )
-		if ( id is None ) or ( id == '' ):
-			id = str( self.pathid ) + 'x'
-			self.pathid += 1
-		else:
-			id = re.sub( '[^A-Za-z0-9_]+', '', id )
-		self.f.write( 'module poly_' + id + '(h)\n{\n' )
-		self.f.write( '  scale([25.4/90, -25.4/90, 1]) union()\n  {\n' )
-
-		# And add the call to the call list
-		self.call_list.append( 'poly_%s(%s);\n' % ( id, self.options.height ) )
-
 		for i in range( 0, len( path ) ):
 
 			# Skip this subpath if it is contained by another one
@@ -489,53 +479,15 @@ class OpenSCAD( inkex.Effect ):
 			bbox    = path[i][1]
 
 			if len( contains[i] ) == 0:
-
 				# This subpath does not contain any subpaths
-				poly = \
-					'    linear_extrude(height=h)\n' + \
-					'      polygon(['
 
-				for point in subpath:
-					poly += '[%f,%f],' % ( ( point[0] - self.cx ), ( point[1] - self.cy ) )
+                                points = [(point[0] - self.cx, point[1] - self.cy) for point in subpath]
+                                points = ['[%f,%f]' % (a, b) for (a, b) in points]
 
-				poly = poly[:-1]
-				poly += ']);\n'
-				self.f.write( poly )
+				self.f.write("polygon([%s]);\n" % ','.join(points))
 
 			else:
-
-				# This subpath contains other subpaths
-				poly = \
-					'    difference()\n' + \
-					'    {\n' + \
-					'       linear_extrude(height=h)\n' + \
-					'         polygon(['
-
-				for point in subpath:
-					poly += '[%f,%f],' % ( ( point[0] - self.cx ), ( point[1] - self.cy ) )
-
-				poly = poly[:-1]
-				poly += ']);\n'
-				self.f.write( poly )
-
-				for j in contains[i]:
-
-					poly = \
-						'       translate([0, 0, -fudge])\n' + \
-						'         linear_extrude(height=h+2*fudge)\n' + \
-						'           polygon(['
-
-					for point in path[j][0]:
-						poly += '[%f,%f],' % ( ( point[0] - self.cx ), ( point[1] - self.cy ) )
-
-					poly = poly[:-1]
-					poly += ']);\n'
-					self.f.write( poly )
-
-				self.f.write( '    }\n' )
-
-		# End the module
-		self.f.write( '  }\n}\n' )
+                                inkex.errormsg( 'Warning: nested paths not supported :(.' )
 
 	def recursivelyTraverseSvg( self, aNodeList,
 		matCurrent=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
@@ -856,6 +808,14 @@ class OpenSCAD( inkex.Effect ):
 		else:
 			return self.docTransform
 
+        @contextlib.contextmanager
+        def addBoilerplate(self):
+            self.f.write("module paths() {\n")
+            self.f.write(" scale([25.4/90, -25.4/90, 1]) {\n")
+            yield
+            self.f.write(" }\n")
+            self.f.write("}")
+
 	def effect( self ):
 
 		# Viewbox handling
@@ -886,26 +846,10 @@ class OpenSCAD( inkex.Effect ):
 			else:
 				self.f = open( os.path.expanduser( self.options.fname ).replace('/', os.sep), 'w')
 
-			self.f.write('''
-// Module names are of the form poly_<inkscape-path-id>().  As a result,
-// you can associate a polygon in this OpenSCAD program with the corresponding
-// SVG element in the Inkscape document by looking for the XML element with
-// the attribute id=\"inkscape-path-id\".
+                        with self.addBoilerplate():
+			    for key in self.paths:
+				self.convertPath(key)
 
-// fudge value is used to ensure that subtracted solids are a tad taller
-// in the z dimension than the polygon being subtracted from.  This helps
-// keep the resulting .stl file manifold.
-fudge = 0.1;
-''' )
-
-			for key in self.paths:
-				self.f.write( '\n' )
-				self.convertPath( key )
-
-		# Now output the list of modules to call
-			self.f.write( '\n' )
-			for call in self.call_list:
-				self.f.write( call )
 
 		except:
 			inkex.errormsg( 'Unable to open the file ' + self.options.fname )
