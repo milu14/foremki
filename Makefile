@@ -1,4 +1,7 @@
-.PHONY: clean
+.PHONY: clean all
+
+all:
+
 
 %.gcode: %.stl
 	slic3r $<

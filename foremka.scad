@@ -1,21 +1,19 @@
 // Moduł do robienia foremek.
 
-module foremka(height=10, thickness=2, last_height = 0.3, last_thickness=0.5) {
- union() {
-  extrude_shell(height, thickness) children();
-  translate([0, 0, height])
-   extrude_shell(last_height, last_thickness) children();
+module foremka(outer_height=7, thickness=3, inner_height=10) {
+ difference() {
+  for(z = [0.1:0.1:1]) {
+   extrude(outer_height*z+inner_height*(1-z), thickness*z) children();
+  }
+  translate([0,0,-inner_height]) linear_extrude(3*inner_height) children();
  }
 }
 
-module extrude_shell(height, thickness) {
+module extrude(height, thickness) {
  linear_extrude(height) {
-  difference() {
    minkowski() {
     children();
     circle(r=thickness);
    }
-   children();
-  }
  }
 }
