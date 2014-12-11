@@ -475,19 +475,18 @@ class OpenSCAD( inkex.Effect ):
 			if len( contained_by[i] ) != 0:
 				continue
 
-			subpath = path[i][0]
-			bbox    = path[i][1]
+			subpaths = [path[i][0]] + [path[j][0] for j in contains[i]]
+                        D = 7
+                        points = [[round(point[0] - self.cx, D), round(point[1] - self.cy, D)] for subpath in subpaths for point in subpath]
+                        #points = ['[%f,%f]' % (a, b) for (a, b) in points]
 
-			if len( contains[i] ) == 0:
-				# This subpath does not contain any subpaths
+                        paths = []
+                        pos = 0
+                        for l in [len(subpath) for subpath in subpaths]:
+                            paths.append(range(pos, pos+l))
+                            pos += l
 
-                                points = [(point[0] - self.cx, point[1] - self.cy) for point in subpath]
-                                points = ['[%f,%f]' % (a, b) for (a, b) in points]
-
-				self.f.write("polygon([%s]);\n" % ','.join(points))
-
-			else:
-                                inkex.errormsg( 'Warning: nested paths not supported :(.' )
+        		self.f.write("polygon(points=%s, paths=%s);\n" % (str(points), str(paths)))
 
 	def recursivelyTraverseSvg( self, aNodeList,
 		matCurrent=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],

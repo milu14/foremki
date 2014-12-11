@@ -9,11 +9,16 @@ module foremka(outer_height=7, thickness=3, inner_height=10) {
  }
 }
 
+module invert(bbox = [5000, 5000, 5000]) {
+ difference() {
+  cube(bbox, true);
+  children();
+ }
+}
+
 module extrude(height, thickness) {
- linear_extrude(height) {
-   minkowski() {
-    children();
-    circle(r=thickness);
-   }
+ minkowski() {
+  linear_extrude(height/2) circle(r=thickness);
+  linear_extrude(height/2) children();
  }
 }
