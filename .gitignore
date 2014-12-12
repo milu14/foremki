@@ -1,4 +1,4 @@
 *-auto.stl
-*-auto.gcode
+*.gcode
 *.scad-gen
 *.scad-paths
